@@ -36,7 +36,8 @@ connect(async (client) => {
     .withSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKeyId)
     .withSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretAccessKey)
     .withSecretVariable("GITHUB_API_TOKEN", githubApiToken)
-    .withExec(["sh", "-c", `aws lambda update-function-code --function-name myFunctionNodeCtr --image-uri ${out} --region us-east-1`])
+    .withEnvVariable("CACHE_BUSTER", Date.now().toString())
+    .withExec(["sh", "-c", `aws lambda update-function-code --function-name myFunctionNodeCtr --image-uri ${address} --region us-east-1`])
     .withExec(["sh", "-c", "aws lambda update-function-configuration --function-name myFunctionNodeCtr --environment Variables={GITHUB_API_TOKEN=$GITHUB_API_TOKEN} --region us-east-1"])
     .exitCode()
 
