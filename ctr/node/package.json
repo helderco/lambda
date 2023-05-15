@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@dagger.io/dagger": "^0.5.2"
+  }
+}
