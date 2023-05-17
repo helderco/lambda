@@ -9,9 +9,8 @@ import (
     "github.com/aws/aws-lambda-go/lambda"
 )
 
-func HandleRequest(ctx context.Context) (map[string]interface{}, error) {
+func HandleRequest(ctx context.Context) (interface{}, error) {
     token := os.Getenv("GITHUB_API_TOKEN")
-
     url := "https://api.github.com/repos/dagger/dagger/issues"
     req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
     req.Header.Set("Accept", "application/vnd.github+json")
@@ -25,7 +24,7 @@ func HandleRequest(ctx context.Context) (map[string]interface{}, error) {
 
     defer resp.Body.Close()
 
-    res := map[string]interface{}{}
+    var res interface{}
     err = json.NewDecoder(resp.Body).Decode(&res)
 
     return res, err
