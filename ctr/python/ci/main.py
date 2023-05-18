@@ -23,7 +23,7 @@ async def main():
 
         build = (
             client.container()
-            .from_("python:3.9-buster")
+            .from_("python:3.11-buster")
             .with_exec(["apt-get", "update"])
             .with_exec(["apt-get", "install", "-y", "g++", "make", "cmake", "unzip", "libcurl4-openssl-dev"])
             .with_directory("/src", lambda_dir)
@@ -33,14 +33,16 @@ async def main():
 
         deploy = (
             client.container()
-            .from_("python:3.9-slim-buster")
+            .from_("python:3.11-slim-buster")
             .with_directory("/src", build.directory("/src"))
             .with_workdir("/src")
             .with_exec(["pip", "install", "-r", "requirements.txt"])
             .with_entrypoint(["/usr/local/bin/python", "-m", "awslambdaric", "lambda_function.lambda_handler"])
         )
 
-        #
+        # using aws base image
+        # doesn't work
+        # module import error for lambda_function
         #build = (
         #    client.container()
         #    .from_("python:3.10-alpine")
