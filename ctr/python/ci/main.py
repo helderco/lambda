@@ -5,21 +5,27 @@ import anyio
 import dagger
 
 async def main():
+
+    function_name = "myFunctionPyCtr"
+    function_region = "us-east-1"
+
     # check for required variables in host environment
-    for var in ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]:
+    for var in ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ECR_USERNAME", "AWS_ECR_PASSWORD", "AWS_ECR_ADDRESS", "AWS_ECR_IMAGE"]:
         if var not in os.environ:
             raise EnvironmentError('"%s" environment variable must be set' % var)
-
-    address = "791663586286.dkr.ecr.us-east-1.amazonaws.com/vikramtest:latest"
 
     async with dagger.Connection(dagger.Config(log_output=sys.stderr)) as client:
 
         # set client secrets
         aws_access_key_id = client.set_secret("aws_access_key_id", os.environ.get("AWS_ACCESS_KEY_ID"))
         aws_secret_access_key = client.set_secret("aws_secret_access_key", os.environ.get("AWS_SECRET_ACCESS_KEY"))
+        aws_ecr_password = client.set_secret("aws_ecr_password", os.environ.get("AWS_ECR_PASSWORD"))
+        aws_ecr_username = os.environ.get("AWS_ECR_USERNAME")
+        aws_ecr_address = os.environ.get("AWS_ECR_ADDRESS")
+        aws_ecr_image = os.environ.get("AWS_ECR_IMAGE")
 
         # get host directory
-        lambda_dir = client.host().directory(".", exclude=["ci"])
+        lambda_dir = client.host().directory(".", exclude=["ci", ".venv"])
 
         build = (
             client.container()
@@ -37,7 +43,7 @@ async def main():
             .with_directory("/src", build.directory("/src"))
             .with_workdir("/src")
             .with_exec(["pip", "install", "-r", "requirements.txt"])
-            .with_entrypoint(["/usr/local/bin/python", "-m", "awslambdaric", "lambda_function.lambda_handler"])
+            .with_entrypoint(["/usr/local/bin/python", "-m", "awslambdaric", "lambda.handler"])
         )
 
         # using aws base image
@@ -64,7 +70,11 @@ async def main():
         #    .with_entrypoint(["/lambda-entrypoint.sh", "lambda_function.lambda_handler"])
         #)
 
-        await deploy.publish(address)
+        await (
+            deploy
+            .with_registry_auth(aws_ecr_address, aws_ecr_username, aws_ecr_password)
+            .publish(f"{aws_ecr_address}/{aws_ecr_image}")
+        )
 
         # deploy function
         deploy = (
@@ -74,7 +84,7 @@ async def main():
             .with_secret_variable("AWS_ACCESS_KEY_ID", aws_access_key_id)
             .with_secret_variable("AWS_SECRET_ACCESS_KEY", aws_secret_access_key)
             .with_env_variable("CACHE_BUSTER", str(datetime.datetime.utcnow().timestamp()))
-            .with_exec(["sh", "-c", f"aws lambda update-function-code --function-name myFunctionPyCtr --image-uri {address} --region us-east-1"])
+            .with_exec(["sh", "-c", f"aws lambda update-function-code --function-name {function_name} --image-uri {aws_ecr_address}/{aws_ecr_image} --region {function_region}"])
         )
 
         await deploy.exit_code()

@@ -12,14 +12,15 @@ import (
 
 
 func main() {
-	vars := []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "GITHUB_API_TOKEN"}
+	functionName := "myFunctionGoCtr"
+	functionRegion := "us-east-1"
+
+	vars := []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ECR_USERNAME", "AWS_ECR_PASSWORD", "AWS_ECR_ADDRESS", "AWS_ECR_IMAGE"}
 	for _, v := range vars {
 			if os.Getenv(v) == "" {
 					log.Fatalf("Environment variable %s is not set", v)
 			}
 	}
-
-	repository := "791663586286.dkr.ecr.us-east-1.amazonaws.com/vikramtest:latest"
 
 	// initialize Dagger client
 	ctx := context.Background()
@@ -31,6 +32,10 @@ func main() {
 
 	awsAccessKeyId := client.SetSecret("awsAccessKeyId", os.Getenv("AWS_ACCESS_KEY_ID"))
 	awsSecretAccessKey := client.SetSecret("awsSecretAccessKey",  os.Getenv("AWS_SECRET_ACCESS_KEY"))
+  awsEcrPassword := client.SetSecret("awsEcrPassword", os.Getenv("AWS_ECR_PASSWORD"))
+  awsEcrUsername := os.Getenv("AWS_ECR_USERNAME")
+  awsEcrAddress := os.Getenv("AWS_ECR_ADDRESS")
+  awsEcrImage := os.Getenv("AWS_ECR_IMAGE")
 
 	lambdaDir := client.Host().Directory(".", dagger.HostDirectoryOpts{
 		Exclude: []string{"ci"},
@@ -68,7 +73,8 @@ func main() {
     From("golang:1.20-alpine").
 		WithFile("/lambda", build.File("/src/lambda")).
 		WithEntrypoint([]string{"/lambda"}).
-    Publish(ctx, repository)
+		WithRegistryAuth(awsEcrAddress, awsEcrUsername, awsEcrPassword).
+    Publish(ctx, fmt.Sprintf("%s/%s", awsEcrAddress, awsEcrImage))
 	if err != nil {
 			panic(err)
 	}
@@ -79,7 +85,7 @@ func main() {
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKeyId).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretAccessKey).
     WithEnvVariable("CACHE_BUSTER", time.Now().String()).
-		WithExec([]string{"sh", "-c", fmt.Sprintf("aws lambda update-function-code --function-name myFunctionGoCtr --image-uri %s --region us-east-1", repository)}).
+		WithExec([]string{"sh", "-c", fmt.Sprintf("aws lambda update-function-code --function-name %s --image-uri %s/%s --region %s", functionName, awsEcrAddress, awsEcrImage, functionRegion)}).
 		ExitCode(ctx)
 	if err != nil {
 			panic(err)

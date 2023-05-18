@@ -1,9 +1,9 @@
 import { connect } from "@dagger.io/dagger"
 
-const containerAddress = "791663586286.dkr.ecr.us-east-1.amazonaws.com/vikramtest:latest";
 const functionName = "myFunctionNodeCtr";
+const functionRegion = "us-east-1";
 
-const vars = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "GITHUB_API_TOKEN"];
+const vars = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ECR_USERNAME", "AWS_ECR_PASSWORD", "AWS_ECR_ADDRESS", "AWS_ECR_IMAGE"];
 vars.forEach(v => {
   if(!process.env[v]) {
     console.log(`${v} variable must be set`);
@@ -15,6 +15,10 @@ connect(async (client) => {
 
   let awsAccessKeyId = client.setSecret("awsAccessKeyId", process.env["AWS_ACCESS_KEY_ID"])
   let awsSecretAccessKey = client.setSecret("awsSecretAccessKey", process.env["AWS_SECRET_ACCESS_KEY"])
+  let awsEcrPassword = client.setSecret("awsEcrPassword", process.env["AWS_ECR_PASSWORD"])
+  let awsEcrUsername = process.env["AWS_ECR_USERNAME"]
+  let awsEcrAddress = process.env["AWS_ECR_ADDRESS"]
+  let awsEcrImage = process.env["AWS_ECR_IMAGE"]
 
   let lambdaDir = client.host().directory(".", {exclude:["ci", "node_modules"]})
 
@@ -35,7 +39,7 @@ connect(async (client) => {
   await deploy
     .withDirectory(taskDir, build.directory("/src"))
     .withEntrypoint(["/lambda-entrypoint.sh", "index.handler"]) // overwrite entrypoint
-    .publish(containerAddress)
+    .publish(registryAddress)
     */
 
   /* using non-AWS base image */
@@ -54,7 +58,8 @@ connect(async (client) => {
     .withWorkdir("/src")
     .withEnvVariable("NPM_CONFIG_CACHE", "/tmp/.npm")
     .withEntrypoint(["/usr/local/bin/npx", "aws-lambda-ric", "lambda.handler"])
-    .publish(containerAddress)
+    .withRegistryAuth(awsEcrAddress, awsEcrUsername, awsEcrPassword)
+    .publish(`${awsEcrAddress}/${awsEcrImage}`)
 
   await client.container()
     .from("alpine:3.17.3")
@@ -62,7 +67,7 @@ connect(async (client) => {
     .withSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKeyId)
     .withSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretAccessKey)
     .withEnvVariable("CACHE_BUSTER", Date.now().toString())
-    .withExec(["sh", "-c", `aws lambda update-function-code --function-name ${functionName} --image-uri ${containerAddress} --region us-east-1`])
+    .withExec(["sh", "-c", `aws lambda update-function-code --function-name ${functionName} --image-uri ${awsEcrAddress}/${awsEcrImage} --region ${functionRegion}`])
     //.withExec(["sh", "-c", "aws lambda update-function-configuration --function-name myFunctionNodeCtr --environment Variables={GITHUB_API_TOKEN=$GITHUB_API_TOKEN} --region us-east-1"])
     .exitCode()
 

@@ -1,3 +1,6 @@
+// can't figure out why but this .mjs file doesn't work in a lambda container
+// image
+// returns Uncaught Exception {"errorType":"Runtime.ImportModuleError","errorMessage":"Error: Cannot find module 'lambda'
 import fetch from 'node-fetch'
 
 export const handler = async(event) => {

@@ -1,5 +1,4 @@
 # Assumptions
-- ECR repository exists for container push
 - Lambda function exists with public endpoint
 - Lambda function env is configured separately (in this case, GITHUB_API_TOKEN env var)
 
@@ -12,10 +11,6 @@ Set these env vars on the runner:
 #!/bin/bash
 export AWS_ACCESS_KEY_ID=
 export AWS_SECRET_ACCESS_KEY=
-export AWS_ECR_USERNAME=AWS
-export AWS_ECR_PASSWORD=
-export AWS_ECR_ADDRESS=
-export AWS_ECR_IMAGE=
 ```
 
 Set this env var in AWS Lambda:

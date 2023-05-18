@@ -1,7 +1,7 @@
 import requests
 import os
 
-def lambda_handler(event, context):
+def handler(event, context):
 
     token = os.environ.get('GITHUB_API_TOKEN')
     url = 'https://api.github.com/repos/dagger/dagger/issues'
